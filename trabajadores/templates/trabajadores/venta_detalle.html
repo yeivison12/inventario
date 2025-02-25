@@ -1,0 +1,65 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold text-primary">🧾 Detalles de la Venta #{{ venta.id }}</h2>
+        <div>
+            <a href="{% url 'venta_list' %}" class="btn btn-secondary shadow">
+                <i class="fas fa-arrow-left"></i> Volver a la Lista
+            </a>
+            <a href="{% url 'venta_pdf' venta.id %}" class="btn btn-danger shadow">
+                <i class="fas fa-file-pdf"></i> Descargar PDF
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjeta con Datos Generales -->
+    <div class="card  mb-4" style="background-color: #f5f5dc; border: 1px solid #d4a373;">
+        <div class="card-body" style="color:black;">
+            <p class="mb-2"><strong>👤 Cliente:</strong> {{ venta.cliente }}</p>
+            <p class="mb-2"><strong>🛍️ Vendedor:</strong> {{ venta.vendedor.username }}</p>
+            <p class="mb-2"><strong>📅 Fecha:</strong> {{ venta.fecha_creacion|date:"Y-m-d H:i" }}</p>
+            <h4 class="text-success fw-bold mt-3">💰 Total: ${{ venta.total }}</h4>
+        </div>
+    </div>
+
+    <!-- Tabla de Productos -->
+    <div class="card shadow-lg" style="background-color: #f5f5dc; border: 1px solid #d4a373;">
+        <div class="card-header" style="background-color: #8B4513; color: #f5f5dc;">
+            <h5 class="mb-0">📦 Productos Vendidos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle mb-0">
+                <thead class="table-light text-center">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Categoría</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in venta.ventaproducto_set.all %}
+                    <tr>
+                        <td>{{ item.producto.nombre }}</td>
+                        <td class="text-center">
+                            {% if request.user.is_staff %}
+                            <a href="{% url "detalle_marcas" item.producto.categoria.pk %}" class="badge bg-info text-dark p-2">{{ item.producto.categoria.nombre }}</a>
+                        
+                            {% else %}
+                            <spam class="badge bg-info text-dark p-2">{{ item.producto.categoria.nombre }}</spam>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><span class="badge bg-dark p-2 fs-6">{{ item.cantidad }}</span></td>
+                        <td class="text-center text-muted">${{ item.precio }}</td>
+                        <td class="text-center fw-bold text-success">${{ item.subtotal }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

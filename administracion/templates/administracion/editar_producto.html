@@ -1,0 +1,68 @@
+<!-- filepath: /c:/Users/el12m/Desktop/Negocio mamá/inventario/administracion/templates/administracion/editar_producto.html -->
+{% extends 'core/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Producto{% endblock %}
+
+{% block content %}
+    <h2 class="mb-4 text-center">{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Producto</h2>
+
+    <form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+        {% csrf_token %}
+        
+        <!-- Errores generales del formulario -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                {{ form.nombre.label_tag }}
+                {{ form.nombre }}
+                {% if form.nombre.errors %}
+                    <div class="text-danger">{{ form.nombre.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6 mb-3">
+                {{ form.precio.label_tag }}
+                {{ form.precio }}
+                {% if form.precio.errors %}
+                    <div class="text-danger">{{ form.precio.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6 mb-3">
+                {{ form.cantidad.label_tag }}
+                {{ form.cantidad }}
+                {% if form.cantidad.errors %}
+                    <div class="text-danger">{{ form.cantidad.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6 mb-3">
+                {{ form.imagen.label_tag }}
+                {{ form.imagen }}
+                {% if form.imagen.errors %}
+                    <div class="text-danger">{{ form.imagen.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-6 mb-3">
+                {{ form.categoria.label_tag }}
+                {{ form.categoria }}
+                {% if form.categoria.errors %}
+                    <div class="text-danger">{{ form.categoria.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-12 mb-3">
+                {{ form.descripcion.label_tag }}
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}
+                    <div class="text-danger">{{ form.descripcion.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-100">Guardar</button>
+    </form>
+
+    <a class="btn btn-secondary mt-3 w-100" href="{% url 'lista_productos' %}">Volver a la lista</a>
+{% endblock %}

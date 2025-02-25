@@ -1,0 +1,99 @@
+{% extends 'core/base.html' %}
+{% load custom_tags %}
+{% load static %}
+{% block title %}Lista de Marcas{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-center mb-4">Lista de Marcas</h2>
+    <a class="btn btn-primary" href="{% url 'nueva_marca' %}">Agregar Marca</a>
+</div>
+
+<!-- Formulario de búsqueda -->
+ 
+<form method="get" action="{% url 'lista_marcas' %}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Buscar marcas" value="{{ request.GET.q }}">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+
+<div class="container">
+    {% if similar_terms %}
+    <p>No se encontraron resultados para "{{ request.GET.q }}".</p>
+    <p>Quizás quisiste decir:</p>
+    <ul>
+        {% for term in similar_terms %}
+            <li><a href="?q={{ term }}">{{ term }}</a></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for marca in marcas %}
+        <div class="col">
+            <div class="card shadow-sm border-0 h-100 bg-body text-body">
+                <!-- Imagen de la Marca -->
+                {% if marca.imagen %}
+                <img src="{{ marca.imagen.url }}" alt="{{ marca.nombre }}" class="card-img-top"
+                     style="width: 100%; height: 200px; object-fit: contain; padding: 10px;">
+                {% else %}
+                <img src="{% static "core/images/noimagen.jpg" %}" alt="Imagen por defecto" class="card-img-top"
+                     style="width: 100%; height: 200px; object-fit: contain; padding: 10px;">
+                {% endif %}
+
+                <!-- Cuerpo de la Tarjeta -->
+                <div class="card-body">
+                    <h5 class="card-title">{{ marca.nombre }}</h5>
+                </div>
+
+                <!-- Botones -->
+                <div class="card-footer text-end border-0 bg-body">
+                    <!-- Botón para ver detalles -->
+                    <a class="btn btn-sm btn-primary" href="{% url 'detalle_marcas' marca.pk %}">Ver</a>
+                
+                    <!-- Botones para editar y eliminar (solo para usuarios del staff) -->
+                    {% if request.user.is_staff %}
+                        <a class="btn btn-sm btn-warning fw-bold" href="{% url 'editar_marcas' marca.pk %}">Editar</a>
+                        <a class="btn btn-sm btn-danger text-white" href="{% url 'eliminar_marcas' marca.pk %}" onclick="return confirm('¿Estás seguro de que deseas eliminar esta marca?')">Eliminar</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        {% endfor %}
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center pagination-sm">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q }}">Anterior</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Anterior</a>
+            </li>
+            {% endif %}
+            {% for i in paginator.page_range %}
+            <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+                <a class="page-link" href="?page={{ i }}&q={{ request.GET.q }}">{{ i }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q }}">Siguiente</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Siguiente</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+
+{% endblock %}

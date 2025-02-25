@@ -1,0 +1,129 @@
+{% extends "core/base.html" %}
+{% block title %}Lista de ventas{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
+        {% if request.user.is_staff %}
+        <h2 class="fw-bold text-primary mb-2 mb-md-0">📋 Ventas de los trabajadores</h2>
+        {% else %}
+        <h2 class="fw-bold text-primary mb-2 mb-md-0">📋 Ventas de {{request.user}}</h2>
+        {% endif %}
+        <a href="{% url 'venta_create' %}" class="btn btn-success shadow">
+            <i class="fas fa-plus"></i> Nueva Venta
+        </a>
+    </div>
+
+    <div class="table-responsive">
+        
+        <form method="get" action="{% url 'venta_list' %}" class="mb-4">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="Buscar ventas por nombre del cliente" value="{{ request.GET.q }}">
+                <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+            </div>
+        </form>
+        {% if similar_terms %}
+        <div class="alert alert-info mt-3">
+            <p class="mb-1">¿Quizás quisiste decir?</p>
+            {% for term in similar_terms %}
+            <a href="?q={{ term }}" class="badge bg-primary text-decoration-none">{{ term }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+
+        {%include "trabajadores/from_pdf.html"%}
+    
+
+
+
+
+        <table class="table table-hover table-bordered align-middle shadow-lg rounded-3 overflow-hidden">
+            
+            <thead class="table-primary text-center">
+                <tr>
+                    <th class="d-none d-md-table-cell">ID</th>
+                    <th>Cliente</th>
+                    <th class="d-none d-sm-table-cell">Vendedor</th>
+                    <th>Total</th>
+                    <th class="d-none d-lg-table-cell">Productos</th>
+                    <th class="d-none d-md-table-cell">Fecha</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td class="text-center fw-bold d-none d-md-table-cell">#{{ venta.id }}</td>
+                    <td class="text-truncate" style="max-width: 150px;">{{ venta.cliente }}</td>
+                    <td class="d-none d-sm-table-cell">{{ venta.vendedor.username }}</td>
+                    <td class="text-center fw-bold text-success fs-5">${{ venta.total }}</td>
+                    <td class="d-none d-lg-table-cell">
+                        <ul class="list-unstyled mb-0">
+                            {% for venta_id, productos in ventas_productos.items %}
+                                {% if venta_id == venta.id %}
+                                    {% for item in productos %}
+                                        <li>
+                                            <span class="badge bg-dark p-2">{{ item.cantidad }}x</span> 
+                                            <span class="fw-semibold">{{ item.producto.nombre }}</span>
+                                        </li>
+                                    {% endfor %}
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                    </td>
+                    <td class="text-center text-muted d-none d-md-table-cell">{{ venta.fecha_creacion|date:"Y-m-d H:i" }}</td>
+                    <td class="text-center">
+                        <a href="{% url 'venta_detail' venta.id %}" class="btn btn-sm btn-info text-white shadow-sm">
+                            <i class="fas fa-eye"></i> Ver
+                        </a>
+                    </td>
+                </tr>
+
+                {% empty %}
+                <tr>
+                    {% if error_message %}
+                    <td colspan="7" class="text-center text-muted py-4"><a href="{% url "venta_list" %}">Noy hay ventas registradas para el día de hoy  </a></td>
+                    
+                    {% else %}
+                    <td colspan="7" class="text-center text-muted py-4">No hay ventas registradas.</td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center pagination-sm">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ request.GET.q }}">Anterior</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Anterior</a>
+            </li>
+            {% endif %}
+            {% for i in paginator.page_range %}
+            <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+                <a class="page-link" href="?page={{ i }}&q={{ request.GET.q }}">{{ i }}</a>
+            </li>
+            {% endfor %}
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ request.GET.q }}">Siguiente</a>
+            </li>
+            {% else %}
+            <li class="page-item disabled">
+                <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Siguiente</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+    
+</div>
+{% endblock %}

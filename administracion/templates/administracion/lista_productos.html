@@ -1,0 +1,108 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}Lista de Productos{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="text-center mb-4">Lista de Productos</h2>
+    {% if request.user.is_staff %}
+    <a class="btn btn-primary" href="{% url 'nuevo_producto' %}">Agregar Producto</a>
+    {% endif %}
+</div>
+<form method="get" action="{% url 'lista_productos' %}" class="mb-4">
+    <div class="input-group">
+        <input type="text" name="q" class="form-control" placeholder="Buscar productos" value="{{ request.GET.q }}">
+        <button class="btn btn-outline-secondary" type="submit">Buscar</button>
+    </div>
+</form>
+
+    <div class="container">
+        {% if similar_terms %}
+        <p>No se encontraron resultados para "{{ request.GET.q }}".</p>
+        <p>Quizás quisiste decir:</p>
+        <ul>
+            {% for term in similar_terms %}
+                <li><a href="?q={{ term }}">{{ term }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+        <div class="row row-cols-1 row-cols-md-3 g-4">
+            {% for producto in productos %}
+            <div class="col">
+                <div class="card shadow-sm border-0 h-100 bg-body text-body">
+                    <!-- Imagen del Producto -->
+                    {% if producto.imagen %}
+                    <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}" class="card-img-top"
+                         style="width: 100%; height: 200px; object-fit: contain; padding: 10px;">
+                    {% else %}
+                    
+                    <img src="{% static "core/images/noimagen.jpg" %}" alt="Imagen por defecto" class="card-img-top"
+                         style="width: 100%; height: 200px; object-fit: contain; padding: 10px;">
+                    {% endif %}
+
+                    <!-- Cuerpo de la Tarjeta -->
+                    <div class="card-body">
+                        
+                        <h5 class="card-title">{{ producto.nombre }}</h5>
+                        <p class="card-text text-danger fw-bold">${{ producto.precio }}</p>
+                        {% if producto.cantidad == 0 %}
+                        <h5 class="card-title text-danger">Producto agotado</h5>
+                        {% elif producto.cantidad <= 10 %}
+                        <h5 class="card-title text-warning">El producto está por terminarse, quedan {{ producto.cantidad }}</h5>
+                         {% else %}
+                        <h5 class="card-title text-success">Stock: {{ producto.cantidad }}</h5>
+                        {% endif %}
+                        <p class="card-text">{{ producto.descripcion|default:"Sin descripción disponible" }}</p>
+                    </div>  
+
+                    <!-- Botones -->
+                    <div class="card-footer text-end border-0 bg-body">
+
+                        <a class="btn btn-sm btn-primary" href="{% url 'detalle_producto' producto.pk %}">Ver</a>
+                        {% if request.user.is_staff %}
+                        <a class="btn btn-sm btn-warning fw-bold" href="{% url 'editar_producto' producto.pk %}">Editar</a>
+                        <a class="btn btn-sm btn-danger text-white" href="{% url 'eliminar_producto' producto.pk %}" onclick="return confirm('¿Estás seguro de que deseas eliminar esta marca?')">Eliminar</a>
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            {% empty %}
+            <div class="col">
+                <p class="text-center text-muted">No hay productos disponibles</p>
+            </div>
+            {% endfor %}
+        </div>
+         <!-- Paginación -->
+         {% if is_paginated %}
+         <nav aria-label="Page navigation">
+             <ul class="pagination justify-content-center pagination-sm">
+                 {% if page_obj.has_previous %}
+                 <li class="page-item">
+                     <a class="page-link" href="?page={{ page_obj.previous_page_number }}&q={{ query }}">Anterior</a>
+                 </li>
+                 {% else %}
+                 <li class="page-item disabled">
+                     <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Anterior</a>
+                 </li>
+                 {% endif %}
+                 {% for i in paginator.page_range %}
+                 <li class="page-item {% if page_obj.number == i %}active{% endif %}">
+                     <a class="page-link" href="?page={{ i }}&q={{ query }}">{{ i }}</a>
+                 </li>
+                 {% endfor %}
+                 {% if page_obj.has_next %}
+                 <li class="page-item">
+                     <a class="page-link" href="?page={{ page_obj.next_page_number }}&q={{ query }}">Siguiente</a>
+                 </li>
+                 {% else %}
+                 <li class="page-item disabled">
+                     <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Siguiente</a>
+                 </li>
+                 {% endif %}
+             </ul>
+         </nav>
+         {% endif %}
+    </div>
+    
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Detalle del Producto{% endblock %}
+
+{% block content %}
+    <h2 class="mb-4">{{ producto.nombre }}</h2>
+    <p><strong>Descripción:</strong> {{ producto.descripcion }}</p>
+    <p><strong>Precio:</strong> {{ producto.precio }}</p>
+    <p><strong>Cantidad:</strong> {{ producto.cantidad }}</p>
+    <p><strong>Marca:</strong> {{ producto.categoria }}</p>
+    <p><strong>Fecha de Creación:</strong> {{ producto.fecha_creacion }}</p>
+    <p><strong>Fecha de Actualización:</strong> {{ producto.fecha_actualizacion }}</p>
+    {% if request.user.is_staff %}
+    <a class="btn btn-warning" href="{% url 'editar_producto' producto.pk %}">Editar</a>
+    {% endif %}
+    <a class="btn btn-secondary" href="{% url 'lista_productos' %}">Volver a la lista</a>
+{% endblock %}

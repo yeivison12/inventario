@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+
+{% block title %}{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Marca{% endblock %}
+
+{% block content %}
+<h2 class="mb-4 text-center">{% if form.instance.pk %}Editar{% else %}Nueva{% endif %} Marca</h2>
+
+<form method="post" enctype="multipart/form-data" class="needs-validation" novalidate>
+    {% csrf_token %}
+    
+    <!-- Errores generales del formulario -->
+    {% if form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ form.non_field_errors }}
+        </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            {{ form.nombre.label_tag }}
+            {{ form.nombre }}
+            {% if form.nombre.errors %}
+                <div class="text-danger">{{ form.nombre.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+            {{ form.imagen.label_tag }}
+            {{ form.imagen }}
+            {% if form.imagen.errors %}
+                <div class="text-danger">{{ form.imagen.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <button type="submit" class="btn btn-primary w-100">Guardar</button>
+</form>
+
+<a class="btn btn-secondary mt-3 w-100" href="{% url 'lista_marcas' %}">Volver a la lista de marcas</a>
+{% endblock %}
