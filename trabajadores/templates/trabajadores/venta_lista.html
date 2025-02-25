@@ -45,6 +45,7 @@
                     <th>Cliente</th>
                     <th class="d-none d-sm-table-cell">Vendedor</th>
                     <th>Total</th>
+                    <th class="d-none d-sm-table-cell">Método Pago</th> 
                     <th class="d-none d-lg-table-cell">Productos</th>
                     <th class="d-none d-md-table-cell">Fecha</th>
                     <th>Acciones</th>
@@ -52,11 +53,17 @@
             </thead>
             <tbody>
                 {% for venta in ventas %}
+                
                 <tr>
                     <td class="text-center fw-bold d-none d-md-table-cell">#{{ venta.id }}</td>
                     <td class="text-truncate" style="max-width: 150px;">{{ venta.cliente }}</td>
                     <td class="d-none d-sm-table-cell">{{ venta.vendedor.username }}</td>
                     <td class="text-center fw-bold text-success fs-5">${{ venta.total }}</td>
+                    <td class="text-center d-none d-sm-table-cell">  <!-- Nueva celda -->
+                        <span class="badge bg-secondary p-2 ">
+                            {{ venta.get_metodo_pago_display }}
+                        </span>
+                    </td>
                     <td class="d-none d-lg-table-cell">
                         <ul class="list-unstyled mb-0">
                             {% for venta_id, productos in ventas_productos.items %}

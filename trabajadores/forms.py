@@ -4,9 +4,10 @@ from .models import Venta, VentaProducto
 class VentaForm(forms.ModelForm):
     class Meta:
         model = Venta
-        fields = ['cliente']
+        fields = ['cliente','metodo_pago']
         widgets = {
             'cliente': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre del cliente'}),
+            'metodo_pago': forms.Select(attrs={'class': 'form-select' ,'required':'true'}),
         }
 class VentaProductoForm(forms.ModelForm):
     class Meta:

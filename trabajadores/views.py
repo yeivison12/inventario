@@ -5,30 +5,22 @@ from django.views import View
 from django.views.generic import ListView, DetailView
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import Q, Min, Max, Sum
 import difflib
 from reportlab.lib.pagesizes import letter
 from django.utils.dateparse import parse_date
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
+from django.utils.timezone import localtime
+from django.contrib.auth.models import User
+from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
-from django.db.models import Min, Max, Sum
-from datetime import datetime
-from .models import Venta
-from django.http import JsonResponse
-from django.utils.timezone import localtime
-from administracion.models import EmpresaNombre
-from datetime import datetime
-from django.contrib.auth.models import User
-from django.http import HttpResponse
-from django.views.generic import DetailView
-from django.contrib.auth.mixins import LoginRequiredMixin,UserPassesTestMixin
-from reportlab.pdfgen import canvas
+from administracion.models import Categoria, EmpresaNombre
 from .models import Venta, VentaProducto, Producto
 from .forms import VentaForm, VentaProductoForm
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-from django.http import HttpResponse
+from datetime import datetime
+
+
 # Vista para listar ventas
 class VentaListView(LoginRequiredMixin, ListView):
     model = Venta
@@ -64,7 +56,7 @@ class VentaListView(LoginRequiredMixin, ListView):
         }
         context['similar_terms'] = getattr(self, 'similar_terms', [])
         context['vendedores'] = User.objects.filter(id__in=Venta.objects.values_list('vendedor', flat=True).distinct())
-
+        context['productos'] = Producto.objects.all()
 
         return context
 
@@ -184,35 +176,44 @@ def crear_venta(request):
             return redirect('venta_list')
     else:
         venta_form = VentaForm()
-        
         formset = VentaProductoFormSet()
 
-# 🔎 BÚSQUEDA
+    # BÚSQUEDA
     query = request.GET.get('q', '')
+    from_suggestion = request.GET.get('from_suggestion')
     if query:
-        productos_list = Producto.objects.filter(Q(nombre__icontains=query))
-
-        # Verificamos si el usuario viene de un enlace de sugerencia
-        from_suggestion = request.GET.get('from_suggestion')
-
-        if not productos_list.exists() and not from_suggestion:
-            all_terms = list(Producto.objects.values_list('nombre', flat=True))
-            similar_terms = difflib.get_close_matches(query, all_terms, n=3, cutoff=0.6)
-        else:
+        productos_list = Producto.objects.filter(
+            Q(nombre__icontains=query) |
+            Q(descripcion__icontains=query) |
+            Q(categoria__nombre__icontains=query) |
+            Q(precio__icontains=query)
+        )
+        # Si se hizo clic en una sugerencia, no mostramos el recuadro de sugerencias
+        if from_suggestion:
             similar_terms = []
+        else:
+            # Si no hay resultados, buscamos sugerencias
+            if not productos_list.exists():
+                all_terms = list(Producto.objects.values_list('nombre', flat=True)) + \
+                            list(Categoria.objects.values_list('nombre', flat=True))
+                similar_terms = difflib.get_close_matches(query, all_terms, n=3, cutoff=0.6)
+            else:
+                similar_terms = []
     else:
         productos_list = Producto.objects.all()
         similar_terms = []
-    # 📑 PAGINACIÓN
+
+    # PAGINACIÓN
     paginator = Paginator(productos_list, 5)  # 5 productos por página
     page_number = request.GET.get('page')
     productos = paginator.get_page(page_number)
+
     context = {
         'form': venta_form,
         'formset': formset,
         'productos': productos,
         'query': query,                # Para mantener el valor ingresado en el buscador
-        'similar_terms': similar_terms # Sugerencias si no se encontraron resultados
+        'similar_terms': similar_terms # Sugerencias basadas en la búsqueda
     }
 
     return render(request, 'trabajadores/venta_form.html', context)
@@ -256,7 +257,6 @@ class ExportVentasPDF(UserPassesTestMixin, View):
 
     def generate_pdf(self, queryset):
         """Genera un PDF con la lista de ventas filtradas de manera profesional y eficiente."""
-  
         
         # Configuración inicial del PDF
         response = HttpResponse(content_type='application/pdf')
@@ -286,22 +286,19 @@ class ExportVentasPDF(UserPassesTestMixin, View):
         max_date = queryset.aggregate(max_date=Max('fecha_creacion'))['max_date']
         date_range = (min_date.strftime("%d/%m/%Y") if min_date.date() == max_date.date() 
                     else f"{min_date.strftime('%d/%m/%Y')} al {max_date.strftime('%d/%m/%Y')}")
-        
 
         # Funciones auxiliares
         def truncate_text(text, max_length):
             """Trunca el texto si excede la longitud máxima, añadiendo '...'."""
             return text[:max_length - 3] + '...' if len(text) > max_length else text
+        
         def format_price(price):
-            # Convertimos el precio a float para trabajar con él
             price = float(price)
-            # Si el precio no tiene parte decimal (es entero)
             if price % 1 == 0:
-                # Lo mostramos como entero con separadores de miles
                 return f"${int(price):,}"
             else:
-                # Lo mostramos con dos decimales y separadores de miles
                 return f"${price:,.2f}"
+        
         def draw_header():
             """Dibuja el encabezado del PDF."""
             y = height - 50
@@ -317,8 +314,7 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             return y - 15
 
         def draw_footer():
-            empresa = EmpresaNombre.objects.first() 
-
+            empresa = EmpresaNombre.objects.first()
             """Dibuja el pie de página del PDF."""
             pdf.setFont(styles['footer_font']['font'], styles['footer_font']['size'])
             pdf.setFillColorRGB(*styles['footer_font']['color'])
@@ -331,8 +327,8 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             pdf.rect(40, y - row_height, width - 80, row_height, fill=1)
             pdf.setFont(styles['header']['font'], styles['header']['size'])
             pdf.setFillColorRGB(*styles['header']['color'])
-            headers = ["ID", "Cliente", "Vendedor", "Productos", "Total", "Fecha"]
-            x_positions = [50, 100, 220, 300, 410, 510]
+            headers = ["ID", "Cliente", "Vendedor", "Productos", "Pago", "Total", "Fecha"]
+            x_positions = [50, 100, 170, 250, 350, 425, 510]
             for i, header in enumerate(headers):
                 pdf.drawString(x_positions[i], y - (row_height / 1.5), header)
             return y - row_height
@@ -362,15 +358,16 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             pdf.setFillColorRGB(*styles['body']['color'])
 
             pdf.drawString(50, y_position - 15, str(venta.id))
-            pdf.drawString(100, y_position - 15, truncate_text(venta.cliente, 18))
-            pdf.drawString(220, y_position - 15, truncate_text(venta.vendedor.username, 10))
-            pdf.drawRightString(440, y_position - 15 ,format_price(venta.total))
-            pdf.drawString(480, y_position - 15, localtime(venta.fecha_creacion).strftime("%d/%m/%Y %H:%M"))
-
+            pdf.drawString(100, y_position - 15, truncate_text(str(venta.cliente), 18))
+            pdf.drawString(170, y_position - 15, truncate_text(venta.vendedor.username, 10))
+            pdf.drawString(350, y_position - 15, truncate_text(str(venta.metodo_pago), 10))
+            pdf.drawRightString(460, y_position - 15, format_price(venta.total))
+            
+            pdf.drawString(490, y_position - 15, localtime(venta.fecha_creacion).strftime("%d/%m/%Y %H:%M"))
 
             # Dibujar lista de productos
             for i, product in enumerate(productos_lista):
-                pdf.drawString(300, y_position - 13 - i * line_height, truncate_text(product, 16))
+                pdf.drawString(250, y_position - 13 - i * line_height, truncate_text(product, 16))
 
             total_ventas += venta.total
             pdf.line(40, y_position - row_height_adjusted, width - 40, y_position - row_height_adjusted)
@@ -397,7 +394,7 @@ class ExportVentasPDF(UserPassesTestMixin, View):
         draw_footer()
         pdf.save()
         return response
-    
+        
     
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -413,33 +410,46 @@ class ExportVentasPDF(UserPassesTestMixin, View):
 
         return self.generate_pdf(queryset)
 
-def validar_fechas(request):
+
+
+def validar_ventas(request):
+    """ Valida ventas según fechas, vendedor o producto. """
+
+    # 📌 Obtener parámetros
     fecha_inicio_str = request.GET.get('fecha_inicio')
     fecha_fin_str = request.GET.get('fecha_fin')
     vendedor_id = request.GET.get('vendedor')
+    producto_id = request.GET.get('producto')
+    metodo_pago = request.GET.get('metodo_pago') 
 
-    # Validación del formato de fecha
+
+    queryset = Venta.objects.all()
+
+    # ✅ Validación de fechas
     try:
         fecha_inicio = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date() if fecha_inicio_str else None
         fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").date() if fecha_fin_str else None
     except ValueError:
         return JsonResponse({'error': 'Formato de fecha inválido.'}, status=400)
 
-    # Verificación de coherencia de fechas
     if fecha_inicio and fecha_fin and fecha_inicio > fecha_fin:
         return JsonResponse({'error': 'La fecha de inicio no puede ser posterior a la fecha fin.'}, status=400)
 
-    # Validación del vendedor (debe ser un número)
-    if vendedor_id and not vendedor_id.isdigit():
-        return JsonResponse({'error': 'ID de vendedor inválido.'}, status=400)
-
-    queryset = Venta.objects.all()
     if fecha_inicio:
         queryset = queryset.filter(fecha_creacion__date__gte=fecha_inicio)
     if fecha_fin:
         queryset = queryset.filter(fecha_creacion__date__lte=fecha_fin)
-    if vendedor_id:
+
+    # ✅ Validación del vendedor
+    if vendedor_id and vendedor_id.isdigit():
         queryset = queryset.filter(vendedor_id=vendedor_id)
 
+    # ✅ Validación del producto (Usar la relación correcta con VentaProducto)
+    if producto_id and producto_id.isdigit():
+        queryset = queryset.filter(ventaproducto_set__producto_id=producto_id)  # 🔥 Cambio importante
+    if metodo_pago:
+        queryset = queryset.filter(metodo_pago=metodo_pago)
+    # ✅ Verificar si hay registros que cumplen con los filtros
     existe = queryset.exists()
+
     return JsonResponse({'existe': existe})

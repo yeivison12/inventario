@@ -1,12 +1,11 @@
 {% extends "core/base.html" %}
-{% block title %}Venta{% endblock %}
+{% block title %}Crear Venta{% endblock %}
 {% block content %}
-
 
 <div class="container mt-4">
     <div class="text-center mb-5">
-        <h2 class="text-primary fw-bold" style="letter-spacing: 1px;">Inventario y Ventas</h2>
-        <p class="text-muted">Gestiona tus productos y registra tus ventas de manera sencilla</p>
+        <h2 class="text-primary fw-bold" style="letter-spacing: 1px;">Crear Venta</h2>
+        <p class="text-muted">Registra una nueva venta de manera sencilla</p>
     </div>
 
     <div class="row g-3 row-cols-1 row-cols-md-2">
@@ -24,14 +23,7 @@
                             <button class="btn btn-primary btn-lg" type="submit">Buscar</button>
                         </div>
                     </form>
-                    {% if similar_terms %}
-                    <div class="alert alert-info mt-3">
-                        <p class="mb-1">¿Quizás quisiste decir?</p>
-                        {% for term in similar_terms %}
-                        <a href="?q={{ term }}&from_suggestion=1" class="badge bg-primary text-decoration-none">{{ term }}</a>
-                        {% endfor %}
-                    </div>
-                {% endif %}
+                    
                     <div class="table-responsive">
                         <table class="table table-bordered align-middle">
                             <thead class="table-dark text-white">
@@ -43,12 +35,20 @@
                                 </tr>
                             </thead>
                             <tbody>
+                        {% if similar_terms %}
+                        <div class="alert alert-info mt-3">
+                            <p class="mb-1">¿Quizás quisiste decir?</p>
+                            {% for term in similar_terms %}
+                            <a href="?q={{ term }}&from_suggestion=true" class="badge bg-primary text-decoration-none">{{ term }}</a>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                                 {% for producto in productos %}
                                 <tr class="{% if producto.cantidad == 0 %}table-secondary{% endif %}">
                                     <td data-bs-toggle="modal"
                                     data-bs-target="#modalProducto{{ producto.id }}">
                                         {% if producto.imagen %}
-                                        <img 
+                                        <img
                                         src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}"
                                             class="img-thumbnail rounded" style="width: 40px; height: 40px; object-fit: cover;">
                                         {% else %}
@@ -141,7 +141,6 @@
 </div>
 {% endfor %}
 
-
 <!-- JavaScript Mejorado -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
@@ -150,11 +149,11 @@
         const submitButton = document.getElementById("submit-button");
         const totalVentaElement = document.getElementById("total-venta");
         const addedProducts = new Set();
-    
+
         function actualizarEstadoBoton() {
             submitButton.disabled = !container.querySelector(".producto-item");
         }
-    
+
         function calcularTotalVenta() {
             let total = 0;
             document.querySelectorAll(".cantidad-input").forEach(input => {
@@ -164,12 +163,12 @@
             });
             totalVentaElement.innerText = total.toFixed(2);
         }
-    
+
         function toggleBotonAgregar(productId, disabled) {
             const boton = document.querySelector(`.add-product-btn[data-id="${productId}"]`);
             if (boton) boton.disabled = disabled;
         }
-    
+
         function eliminarProducto(event) {
             const producto = event.target.closest(".producto-item");
             const productId = producto.dataset.productId;
@@ -179,7 +178,7 @@
             actualizarEstadoBoton();
             calcularTotalVenta();
         }
-    
+
         function actualizarEventosCantidad() {
             document.querySelectorAll(".cantidad-input").forEach(input => {
                 input.addEventListener("input", function () {
@@ -188,34 +187,34 @@
                     const totalElement = document.getElementById(this.dataset.totalId);
                     const errorElement = this.closest(".producto-item").querySelector(".error-cantidad");
                     const maxStock = parseInt(this.max);
-    
+
                     totalElement.innerText = (cantidad * precio).toFixed(2);
                     const isValid = cantidad > 0 && cantidad <= maxStock;
-    
+
                     errorElement.classList.toggle("d-none", isValid);
                     submitButton.disabled = !isValid;
                     calcularTotalVenta();
                 });
             });
         }
-    
+
         function actualizarEventosEliminar() {
             document.querySelectorAll(".remove-product-btn").forEach(button => {
                 button.removeEventListener("click", eliminarProducto);
                 button.addEventListener("click", eliminarProducto);
             });
         }
-    
+
         document.querySelectorAll(".add-product-btn").forEach(button => {
             button.addEventListener("click", function () {
                 const productId = this.dataset.id;
                 if (addedProducts.has(productId)) return alert("El producto ya ha sido agregado.");
                 if (parseInt(this.dataset.stock) === 0) return alert("❌ Este producto está agotado.");
-    
+
                 addedProducts.add(productId);
                 toggleBotonAgregar(productId, true);
                 const index = totalForms.value;
-    
+
                 const newProduct = `
                     <div class="card border-secondary mb-2 p-2 producto-item d-flex align-items-center justify-content-between" data-product-id="${productId}">
                         <div>
@@ -229,7 +228,7 @@
                         </div>
                         <button type="button" class="btn btn-danger btn-sm remove-product-btn" data-id="${productId}">Eliminar</button>
                     </div>`;
-    
+
                 container.insertAdjacentHTML("beforeend", newProduct);
                 totalForms.value = parseInt(totalForms.value) + 1;
                 actualizarEventosCantidad();
@@ -238,16 +237,15 @@
                 calcularTotalVenta();
             });
         });
-    
+
         document.getElementById("venta-form").addEventListener("submit", function (event) {
             if (!container.querySelector(".producto-item")) {
                 event.preventDefault();
                 alert("Debe agregar al menos un producto.");
             }
         });
-    
+
         actualizarEventosEliminar();
     });
-    
 </script>
 {% endblock %}

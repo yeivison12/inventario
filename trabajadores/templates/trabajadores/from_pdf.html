@@ -4,7 +4,7 @@
     <div class="form-group">
         <label for="tipo_descarga">¿Quieres descargar registro de ventas?:</label>
         <select id="tipo_descarga" class="form-control" onchange="mostrarFormulario()">
-            <option value="">-- Selecciona por día o por rango de fechas --</option>
+            <option value="">-- Selecciona por día, rango de fechas o producto --</option>
             <option value="dia">Ventas del Día</option>
             <option value="rango">Ventas por Rango de Fechas</option>
         </select>
@@ -15,12 +15,12 @@
         <h4>Ventas del Día</h4>
         <form method="get" action="{% url 'venta_export_pdf' %}" class="form-inline">
             <button type="submit" onclick="return confirmarDescarga();" class="btn btn-danger mb-3">
-                <i class="fas fa-file-pdf" onclick="return confirmarDescarga()"></i> Descargar PDF del Día
+                <i class="fas fa-file-pdf"></i> Descargar PDF del Día
             </button>
         </form>
     </div>
 
-    <!-- Formulario 2: Ventas por Rango de Fechas -->
+    <!-- Formulario 2: Ventas por Rango de Fechas (ahora con Producto) -->
     <div id="form-rango" style="display: none;">
         <h4>Ventas por Rango de Fechas</h4>
         <form id="form-rango-fechas" method="get" action="{% url 'venta_export_pdf' %}" class="form-inline">
@@ -36,33 +36,46 @@
                 <label for="vendedor">Vendedor:</label>
                 <select id="vendedor" name="vendedor" class="form-control" onchange="validarFechas()">
                     <option value="">Todos los vendedores</option>
-                    {% if vendedores %}
-                        {% for vendedor in vendedores %}
-                            <option value="{{ vendedor.id }}" {% if request.GET.vendedor|add:"" == vendedor.id|add:"" %}selected{% endif %}>
-                                {{ vendedor.username }}
-                            </option>
-                        {% endfor %}
-                    {% endif %}
+                    {% for vendedor in vendedores %}
+                        <option value="{{ vendedor.id }}" {% if request.GET.vendedor|add:"" == vendedor.id|add:"" %}selected{% endif %}>
+                            {{ vendedor.username }}
+                        </option>
+                    {% endfor %}
                 </select>
             </div>
+            <div class="form-group">
+                <label for="producto">Producto:</label>
+                <select id="producto" name="producto" class="form-control" onchange="validarFechas()">
+                    <option value="">Todos los productos</option>
+                    {% for producto in productos %}
+                        <option value="{{ producto.id }}">{{ producto.nombre }}</option>  
+                    {% endfor %}
+                </select>
+                
+            </div>
+            <div class="form-group">
+                <label for="metodo_pago">Método de Pago:</label>
+                <select id="metodo_pago" name="metodo_pago" class="form-control" onchange="validarFechas()">
+                    <option value="">Todos los métodos</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="tarjeta">Tarjeta</option>
+                    <option value="transferencia">Transferencia</option>
+                </select>
+            </div>  
             <button type="submit" class="btn btn-danger mb-3" onclick="return confirmarDescarga()" disabled>
                 <i class="fas fa-file-pdf"></i> Descargar PDF
             </button>
             <div id="error-fechas" style="color: red; display: none;"></div>
-            <div id="no-registros" style="color: red; display: none;">
-                No hay registros en el rango de fechas seleccionado.
-            </div>
+            <div id="no-registros" style="color: red; display: none;">No hay registros en el rango de fechas seleccionado.</div>
         </form>
     </div>
 </div>
 
 <script>
 function mostrarFormulario() {
-    // Ocultar todos los formularios
     document.getElementById("form-dia").style.display = "none";
     document.getElementById("form-rango").style.display = "none";
 
-    // Mostrar el formulario seleccionado
     const tipoDescarga = document.getElementById("tipo_descarga").value;
     if (tipoDescarga === "dia") {
         document.getElementById("form-dia").style.display = "block";
@@ -75,53 +88,38 @@ function validarFechas() {
     const fechaInicio = document.getElementById("fecha_inicio").value;
     const fechaFin = document.getElementById("fecha_fin").value;
     const vendedor = document.getElementById("vendedor").value;
-    const errorFechas = document.getElementById("error-fechas");
-    const noRegistros = document.getElementById("no-registros");
+    const producto = document.getElementById("producto").value;
+    const metodoPago = document.getElementById("metodo_pago").value;
     const submitButton = document.querySelector("#form-rango-fechas button[type='submit']");
+    const noRegistros = document.getElementById("no-registros");
 
-    // Validación inicial en el frontend: coherencia de fechas
-    if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
-        errorFechas.textContent = "La fecha de inicio no puede ser posterior a la fecha fin.";
-        errorFechas.style.display = "block";
-        submitButton.disabled = true;
-        return;
-    } else {
-        errorFechas.style.display = "none";
-    }
+    let url = `{% url "validar_ventas" %}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}`;
+    if (vendedor) url += `&vendedor=${vendedor}`;
+    if (producto) url += `&producto=${producto}`;
+    if (metodoPago) url += `&metodo_pago=${metodoPago}`;
 
-    // Solicitud AJAX al servidor para validar los datos
-    fetch(`{% url 'validar_fechas' %}?fecha_inicio=${fechaInicio}&fecha_fin=${fechaFin}&vendedor=${vendedor}`)
-        .then(response => {
-            if (!response.ok) {
-                return response.json().then(err => { throw new Error(err.error || "Error en la validación."); });
-            }
-            return response.json();
-        })
+    //console.log(" Enviando solicitud a:", url); 
+
+    fetch(url)
+        .then(response => response.json())
         .then(data => {
+            //console.log("📬 Respuesta recibida:", data); 
             if (data.existe) {
                 submitButton.disabled = false;
                 noRegistros.style.display = "none";
             } else {
                 submitButton.disabled = true;
-                noRegistros.textContent = "No hay registros en el rango de fechas seleccionado.";
                 noRegistros.style.display = "block";
             }
         })
         .catch(error => {
-            errorFechas.textContent = error.message;
-            errorFechas.style.display = "block";
+            //console.error("❌ Error en fetch:", error);
             submitButton.disabled = true;
         });
 }
 
-function confirmarDescarga() {
-    const fechaInicio = document.getElementById("fecha_inicio").value;
-    const fechaFin = document.getElementById("fecha_fin").value;
 
-    if (fechaInicio && fechaFin && new Date(fechaInicio) > new Date(fechaFin)) {
-        alert("Por favor, corrija las fechas antes de descargar.");
-        return false;
-    }
+function confirmarDescarga() {
     return confirm("¿Estás seguro de que deseas descargar el PDF?");
 }
 </script>
