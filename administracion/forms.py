@@ -42,14 +42,16 @@ class MarcaForm(forms.ModelForm):
 class NombreEmpresaForm(forms.ModelForm):
     class Meta:
         model = EmpresaNombre
-        fields = ['nombre','correo', 'logo']
+        fields = ['nombre','correo', 'logo','nit']
         widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de la marca'}),
+            'nombre': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Nombre de tu empresa'}),
             'correo': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Correo(opcional)'}),
             'logo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+            'nit': forms.NumberInput(attrs={'class': 'form-control', 'placeholder':'Nit'})
         }
         labels = {
             'nombre': 'Nombre',
             'logo': 'Imagen',
             'correo':'Correo Electronico',
+            'nit': 'NIT',
         }        

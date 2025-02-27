@@ -37,14 +37,14 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
         <div class="container-fluid">
             <a class="navbar-brand d-flex align-items-center" href="{% url 'lista_productos' %}">
-                {% if empresa %}
+                
                     {% if empresa.logo %}
                         <img src="{{ empresa.logo.url }}" alt="{{ empresa.nombre }}" style="height: 50px; margin-right: 10px;">
                     {% endif %}
-                    {{ empresa.nombre }}
-                {% else %}
-                    Nombre de la empresa
-                {% endif %}
+
+                {% if empresa.nombre %}{{ empresa.nombre }}{% else %}Nombre de la empresa {% endif %}
+                    
+                
             </a>
     
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"

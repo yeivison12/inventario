@@ -99,7 +99,10 @@ def generar_ticket_venta(request, pk):
     pdf.setFont("Courier-Bold", 10)
     pdf.drawCentredString(ticket_width / 2, y, f"{empresa.nombre}")
     y -= 5 * mm
-    pdf.drawCentredString(ticket_width / 2, y, "RUT: [reguistro]")
+    if empresa.nit:
+        pdf.drawCentredString(ticket_width / 2, y, f"NIT:{empresa.nit}")
+    else:
+        pdf.drawCentredString(ticket_width / 2, y, f"NIT: N/A")
     y -= 5 * mm
     pdf.drawCentredString(ticket_width / 2, y, localtime(venta.fecha_creacion).strftime('%Y-%m-%d %H:%M'))
 
@@ -235,26 +238,35 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             from datetime import date
             today = date.today()
             queryset = queryset.filter(fecha_creacion__date=today)
-
-        # Si es el formulario de "Ventas por Rango de Fechas"
-        fecha_inicio = self.request.GET.get('fecha_inicio')
-        fecha_fin = self.request.GET.get('fecha_fin')
-        vendedor_id = self.request.GET.get('vendedor')
-
-        if fecha_inicio:
-            fecha_inicio = parse_date(fecha_inicio)
+        else:
+            # Si es el formulario de "Ventas por Rango de Fechas"
+            fecha_inicio = self.request.GET.get('fecha_inicio')
+            fecha_fin = self.request.GET.get('fecha_fin')
             if fecha_inicio:
-                queryset = queryset.filter(fecha_creacion__date__gte=fecha_inicio)
-        if fecha_fin:
-            fecha_fin = parse_date(fecha_fin)
+                fecha_inicio = parse_date(fecha_inicio)
+                if fecha_inicio:
+                    queryset = queryset.filter(fecha_creacion__date__gte=fecha_inicio)
             if fecha_fin:
-                queryset = queryset.filter(fecha_creacion__date__lte=fecha_fin)
-
+                fecha_fin = parse_date(fecha_fin)
+                if fecha_fin:
+                    queryset = queryset.filter(fecha_creacion__date__lte=fecha_fin)
+        
+        # Filtrado por vendedor
+        vendedor_id = self.request.GET.get('vendedor')
         if vendedor_id:
             queryset = queryset.filter(vendedor_id=vendedor_id)
-
+        
+        # Filtrado por producto (a través de la relación VentaProducto)
+        producto_id = self.request.GET.get('producto')
+        if producto_id:
+            queryset = queryset.filter(ventaproducto_set__producto_id=producto_id).distinct()
+        
+        # Filtrado por método de pago
+        metodo_pago = self.request.GET.get('metodo_pago')
+        if metodo_pago:
+            queryset = queryset.filter(metodo_pago=metodo_pago)
+        
         return queryset.select_related('vendedor')
-
     def generate_pdf(self, queryset):
         """Genera un PDF con la lista de ventas filtradas de manera profesional y eficiente."""
         
@@ -318,7 +330,10 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             """Dibuja el pie de página del PDF."""
             pdf.setFont(styles['footer_font']['font'], styles['footer_font']['size'])
             pdf.setFillColorRGB(*styles['footer_font']['color'])
-            pdf.drawCentredString(width / 2, 30, f"Página {page_number} - Sistema de Inventario {empresa.nombre}")
+            if empresa.nombre:
+                pdf.drawCentredString(width / 2, 30, f"Página {page_number} - Sistema de Inventario {empresa.nombre}")
+            else:
+                pdf.drawCentredString(width / 2, 30, f"Página {page_number} - Sistema de Inventario ")
             pdf.line(40, 40, width - 40, 40)
 
         def draw_table_header(y):
@@ -398,7 +413,7 @@ class ExportVentasPDF(UserPassesTestMixin, View):
     
     def get(self, request, *args, **kwargs):
         queryset = self.get_queryset()
-        
+         
         # Validar si hay registros en el rango de fechas
         if not queryset.exists():
             # Crear contexto manualmente para el error

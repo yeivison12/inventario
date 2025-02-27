@@ -43,6 +43,7 @@ class Producto(models.Model):
     
 class EmpresaNombre(models.Model):
     nombre = models.CharField(max_length=25,blank=True, null=True, default="Tu empresa")
+    nit = models.IntegerField( null=True,blank=True,default='123456789')
     correo = models.EmailField(max_length=50,blank=True, null=True)
     logo = models.ImageField(upload_to='empresa/', blank=True, null=True)
     
