@@ -16,7 +16,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
 from administracion.models import Categoria, EmpresaNombre
-from .models import Venta, VentaProducto, Producto
+from .models import  Venta, VentaProducto, Producto
 from .forms import VentaForm, VentaProductoForm
 from datetime import datetime
 

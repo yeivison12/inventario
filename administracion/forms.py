@@ -1,3 +1,4 @@
+import os
 from django import forms
 from .models import Producto, Categoria, EmpresaNombre
 
@@ -12,11 +13,10 @@ class ProductoForm(forms.ModelForm):
             'descripcion': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Descripción del producto'}),
             'imagen': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'categoria': forms.Select(attrs={
-            'class': 'form-select mb-3',
-            'id': 'horario',
-            'required': True
-        }),
-
+                'class': 'form-select mb-3',
+                'id': 'horario',
+                'required': True
+            }),
         }
         labels = {
             'nombre': 'Nombre',
@@ -26,6 +26,16 @@ class ProductoForm(forms.ModelForm):
             'imagen': 'Imagen',
             'categoria': 'Categoría',
         }
+
+    def clean_imagen(self):
+        imagen = self.cleaned_data.get('imagen')
+        if imagen:
+            # Extraer la extensión en minúsculas
+            ext = os.path.splitext(imagen.name)[1].lower()
+            valid_extensions = ['.jpg', '.jpeg', '.png', '.webm']
+            if ext not in valid_extensions:
+                raise forms.ValidationError("Solo se permiten archivos con extensión JPG, PNG o WEBM.")
+        return imagen
 
 class MarcaForm(forms.ModelForm):
     class Meta:

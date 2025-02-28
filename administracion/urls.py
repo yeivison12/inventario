@@ -2,7 +2,7 @@ from django.urls import path
 from django.conf.urls.static import static
 
 from inventario import settings
-from .views import ListaProductosView, DetalleProductoView,EmpresaNombre,EmpresaNombreEditar, NuevoProductoView, EditarProductoView, EliminarProductoView, ListarMarcas, EditarMarcaView, EliminarMarcaView, DetalleMarcasView,NuevaMarcaView
+from .views import ListaProductosView, DetalleProductoView,EmpresaNombre,EmpresaNombreEditar,ListaHistorialProductoView, NuevoProductoView, EditarProductoView, EliminarProductoView, ListarMarcas, EditarMarcaView, EliminarMarcaView, DetalleMarcasView,NuevaMarcaView
 
 urlpatterns = [
     path('', ListaProductosView.as_view(), name='lista_productos'),
@@ -16,6 +16,8 @@ urlpatterns = [
 
    
     path('empresa/editar/', EmpresaNombreEditar.as_view(), name='empresa_editar'),
+
+     path('historial-productos/', ListaHistorialProductoView.as_view(), name='historial_productos'),
 
     path('marcas/<int:pk>/editar/', EditarMarcaView.as_view(), name='editar_marcas'),
     path('marcas/<int:pk>/eliminar/', EliminarMarcaView.as_view(), name='eliminar_marcas'),

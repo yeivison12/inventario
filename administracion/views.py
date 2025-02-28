@@ -1,9 +1,16 @@
 import difflib
+from pyexpat.errors import messages
+from django.http import HttpResponseRedirect
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from .models import Producto, Categoria, EmpresaNombre  
+from .models import Producto, Categoria, EmpresaNombre,HistorialProducto
 from django.db.models import Q
+from django.core.files.base import ContentFile
+from django.db import transaction
+from django.core.files.base import ContentFile
+import os
+import uuid
 from .forms import NombreEmpresaForm, ProductoForm, MarcaForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
@@ -39,9 +46,10 @@ class ListaProductosView(LoginRequiredMixin,ListView):
                 self.similar_terms = []  # No hay sugerencias si hay resultados
 
         return queryset.order_by('-fecha_creacion')
-
+    historial =HistorialProducto.objects.all()
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context['historial'] = HistorialProducto.objects.all()
         context['similar_terms'] = getattr(self, 'similar_terms', [])
         return context
     
@@ -50,30 +58,151 @@ class DetalleProductoView(LoginRequiredMixin,DetailView):
     template_name = 'administracion/detalle_producto.html'
     context_object_name = 'producto'
 
-class NuevoProductoView(AdminRequiredMixin,CreateView):
+class NuevoProductoView(AdminRequiredMixin, CreateView):
     model = Producto
     form_class = ProductoForm
     template_name = 'administracion/editar_producto.html'
     success_url = reverse_lazy('lista_productos')
+
     def form_valid(self, form):
         form.instance.creado_por = self.request.user
         form.instance.actualizado_por = self.request.user
-        return super().form_valid(form)
-    
-class EditarProductoView(AdminRequiredMixin,UpdateView):
+        response = super().form_valid(form)
+        # self.object es el producto creado
+        HistorialProducto.objects.create(
+            producto=self.object,
+            nombre_producto=self.object.nombre,  # Se asigna el nombre del producto
+            usuario=self.request.user,
+            tipo_cambio="Creado",
+            detalle_cambio="Producto creado en el sistema.",
+            imagen_producto=self.object.imagen  # Guardamos la imagen actual
+        )
+        return response
+
+
+class EditarProductoView(AdminRequiredMixin, UpdateView):
     model = Producto
     form_class = ProductoForm
     template_name = 'administracion/editar_producto.html'
     success_url = reverse_lazy('lista_productos')
+
     def form_valid(self, form):
-        form.instance.actualizado_por = self.request.user
+        # Obtenemos el producto original antes de guardar
+        producto_original = self.get_object()
+        old_image = producto_original.imagen
+        old_image_url = old_image.url if old_image else None
+
+        # Preparamos el objeto nuevo, pero aún no lo guardamos en la BD
+        nuevo_producto = form.save(commit=False)
+        nuevo_producto.actualizado_por = self.request.user
+
+        # Guardamos el producto primero, para que la nueva imagen se suba y tenga URL
+        nuevo_producto.save()
+        
+        # Si usas form.changed_data, guárdalo antes de un nuevo form.save()
+        changed_fields = form.changed_data  
+        
+        # Ahora sí podemos obtener la URL de la nueva imagen
+        new_image = nuevo_producto.imagen
+        new_image_url = new_image.url if new_image else None
+        nombre_producto = self.object.nombre
+        # Empezamos a armar la lista de cambios
+        cambios = []
+        
+        for field in changed_fields:
+            valor_antiguo = getattr(producto_original, field)
+            valor_nuevo = getattr(nuevo_producto, field)
+            nombre_producto=nombre_producto
+            # 1. Si cambió la cantidad
+            if field == "cantidad":
+                diferencia = valor_nuevo - valor_antiguo
+                if diferencia > 0:
+                    cambios.append(
+                        f"Cantidad aumentó en {diferencia} (de {valor_antiguo} a {valor_nuevo})"
+                    )
+                else:
+                    cambios.append(
+                        f"Cantidad reducida en {abs(diferencia)} (de {valor_antiguo} a {valor_nuevo})"
+                    )
+
+      
+            elif field == "imagen":
+                
+                if old_image_url and new_image_url:
+                    cambios.append(
+                        f"Imagen: "
+                        f"<img src='{old_image_url}' style='max-width:100px; vertical-align:middle;'> "
+                        f"→ "
+                        f"<img src='{new_image_url}' style='max-width:100px; vertical-align:middle;'>"
+                    )
+                elif old_image_url and not new_image_url:
+                    cambios.append(
+                        f"Imagen eliminada: "
+                        f"<img src='{old_image_url}' style='max-width:100px; vertical-align:middle;'>"
+                    )
+                elif new_image_url and not old_image_url:
+                    cambios.append(
+                        f"Imagen agregada: "
+                        f"<img src='{new_image_url}' style='max-width:100px; vertical-align:middle;'>"
+                    )
+                else:
+                
+                    cambios.append("Sin cambios en la imagen.")
+            
+           
+            elif field == 'nombre':
+                cambios.append(
+                    f"Se cambió el {field} de: <strong>{valor_antiguo}</strong> a: <strong>{valor_nuevo}</strong>"
+                )
+            
+            # 4. Otros campos
+            else:
+                cambios.append(f"{field}: {valor_antiguo} → {valor_nuevo}")
+
+
+        if cambios:
+            HistorialProducto.objects.create(
+                producto=nuevo_producto,
+                usuario=self.request.user,
+                tipo_cambio="Editado",
+                nombre_producto = nombre_producto,
+                detalle_cambio="\n".join(cambios)
+            )
+
         return super().form_valid(form)
 
-class EliminarProductoView(AdminRequiredMixin,DeleteView):
+
+
+class EliminarProductoView(AdminRequiredMixin, DeleteView):
     model = Producto
     template_name = 'administracion/eliminar_producto.html'
     success_url = reverse_lazy('lista_productos')
 
+class ListaHistorialProductoView(AdminRequiredMixin, ListView):
+    model = HistorialProducto
+    template_name = 'administracion/historial_productos.html'
+    context_object_name = 'historial'
+    paginate_by = 10
+
+    def get_queryset(self):
+        queryset = HistorialProducto.objects.select_related("producto", "usuario").order_by("-fecha_cambio")
+        producto_id = self.request.GET.get("producto_id")
+        if producto_id:
+            try:
+                # Intentamos obtener el producto para extraer su nombre.
+                producto = Producto.objects.get(pk=producto_id)
+                queryset = queryset.filter(
+                    Q(producto_id=producto_id) | Q(nombre_producto=producto.nombre)
+                )
+            except Producto.DoesNotExist:
+                # Si el producto no existe, devolvemos un queryset vacío.
+                queryset = queryset.none()
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['productos'] = Producto.objects.all()  # Para seleccionar productos en el filtro
+        return context
 
 ########################################################################################
 
