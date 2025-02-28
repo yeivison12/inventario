@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="text-center mb-4">Lista de Productos</h2>
     {% if  historial %}
-    <a class="btn btn-warning" href="{% url 'historial_productos' %}">Ver historial decambios en productos</a>
+    <a class="btn btn-warning" href="{% url 'historial_productos' %}">Ver historial de cambios en productos</a>
     {% endif %}
     {% if request.user.is_staff %}
     <a class="btn btn-primary" href="{% url 'nuevo_producto' %}">Agregar Producto</a>

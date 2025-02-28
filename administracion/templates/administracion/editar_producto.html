@@ -63,6 +63,17 @@
         
         <button type="submit" class="btn btn-primary w-100">Guardar</button>
     </form>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const form = document.querySelector("form");
+            const submitButton = form.querySelector("button[type='submit']");
+        
+            form.addEventListener("submit", function () {
+                submitButton.disabled = true;
+                submitButton.innerText = "Guardando..."; 
+            });
+        });
+        </script>
 
     <a class="btn btn-secondary mt-3 w-100" href="{% url 'lista_productos' %}">Volver a la lista</a>
 {% endblock %}

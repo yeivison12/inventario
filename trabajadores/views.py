@@ -129,7 +129,7 @@ def generar_ticket_venta(request, pk):
     # Productos
     pdf.setFont("Courier", 9)
     for item in venta.ventaproducto_set.all():
-        producto = item.producto.nombre[:12].ljust(15)
+        producto = (item.nombre_producto[:12] if item.nombre_producto else "Producto eliminado").ljust(15)
         cantidad = str(item.cantidad).rjust(2)
         subtotal = format_price(item.subtotal).rjust(8)
         pdf.drawString(5 * mm, y, f"{cantidad}     {producto}{subtotal}")
@@ -355,7 +355,10 @@ class ExportVentasPDF(UserPassesTestMixin, View):
         # Optimizar la consulta con prefetch_related
         for venta in queryset.prefetch_related('ventaproducto_set__producto'):
             productos_vendidos = venta.ventaproducto_set.all()
-            productos_lista = [f"{vp.cantidad}x {vp.producto.nombre}" for vp in productos_vendidos]
+            productos_lista = [
+                    f"{vp.cantidad}x {vp.nombre_producto if vp.nombre_producto else 'Producto eliminado'}"
+                    for vp in productos_vendidos]
+
             num_productos = len(productos_lista)
             row_height_adjusted = row_height + (num_productos - 1) * line_height
 

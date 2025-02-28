@@ -43,16 +43,37 @@
                 <tbody>
                     {% for item in venta.ventaproducto_set.all %}
                     <tr>
-                        <td>{{ item.producto.nombre }}</td>
-                        <td class="text-center">
-                            {% if request.user.is_staff %}
-                            <a href="{% url "detalle_marcas" item.producto.categoria.pk %}" class="badge bg-info text-dark p-2">{{ item.producto.categoria.nombre }}</a>
-                        
+                        <!-- 1) Mostrar el nombre del producto, 
+                                o el nombre desnormalizado si producto es None -->
+                        <td>
+                            {% if item.producto %}
+                                {{ item.producto.nombre }}
                             {% else %}
-                            <spam class="badge bg-info text-dark p-2">{{ item.producto.categoria.nombre }}</spam>
+                                {{ item.nombre_producto }}
                             {% endif %}
                         </td>
-                        <td class="text-center"><span class="badge bg-dark p-2 fs-6">{{ item.cantidad }}</span></td>
+            
+                        <!-- 2) Comprobamos si hay producto y categoría para enlazar -->
+                        <td class="text-center">
+                            {% if item.producto and item.producto.categoria %}
+                                {% if request.user.is_staff %}
+                                    <a href="{% url 'detalle_marcas' item.producto.categoria.pk %}"
+                                       class="badge bg-info text-dark p-2">
+                                        {{ item.producto.categoria.nombre }}
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-info text-dark p-2">
+                                        {{ item.producto.categoria.nombre }}
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-secondary text-dark p-2">Categoría desconocida</span>
+                            {% endif %}
+                        </td>
+            
+                        <td class="text-center">
+                            <span class="badge bg-dark p-2 fs-6">{{ item.cantidad }}</span>
+                        </td>
                         <td class="text-center text-muted">${{ item.precio }}</td>
                         <td class="text-center fw-bold text-success">${{ item.subtotal }}</td>
                     </tr>

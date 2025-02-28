@@ -8,6 +8,9 @@ def devolver_stock(sender, instance, **kwargs):
     Al eliminar un detalle de venta, se suma la cantidad vendida al stock del producto
     y se actualiza el total de la venta.
     """
-    instance.producto.cantidad += instance.cantidad
-    instance.producto.save()
+
+    if instance.producto:
+        instance.producto.cantidad += instance.cantidad
+        instance.producto.save()
+
     instance.venta.actualizar_total()
