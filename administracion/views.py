@@ -186,22 +186,41 @@ class ListaHistorialProductoView(AdminRequiredMixin, ListView):
 
     def get_queryset(self):
         queryset = HistorialProducto.objects.select_related("producto", "usuario").order_by("-fecha_cambio")
+
+        # Obtener valores de los filtros
         producto_id = self.request.GET.get("producto_id")
+        query = self.request.GET.get("q")
+
+        # Filtrar por ID de producto (select)
         if producto_id:
             try:
-                # Intentamos obtener el producto para extraer su nombre.
                 producto = Producto.objects.get(pk=producto_id)
                 queryset = queryset.filter(
                     Q(producto_id=producto_id) | Q(nombre_producto=producto.nombre)
                 )
             except Producto.DoesNotExist:
-                # Si el producto no existe, devolvemos un queryset vacío.
                 queryset = queryset.none()
+
+        # Filtrar por nombre del producto (buscador)
+        if query:
+            queryset = queryset.filter(nombre_producto__icontains=query)
+
+            # Si no hay resultados, buscar términos similares
+            if not queryset.exists():
+                all_terms = list(HistorialProducto.objects.values_list('nombre_producto', flat=True))
+                similar_terms = difflib.get_close_matches(query, all_terms, n=3, cutoff=0.6)
+                self.similar_terms = similar_terms
+            else:
+                self.similar_terms = []
+        else:
+            self.similar_terms = []
+
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['productos'] = Producto.objects.all()  # Para seleccionar productos en el filtro
+        context['productos'] = Producto.objects.all()  # Lista para el select
+        context['similar_terms'] = getattr(self, 'similar_terms', [])  # Sugerencias de búsqueda
         return context
 
 ########################################################################################
