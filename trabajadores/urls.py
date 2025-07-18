@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .views import VentaListView, VentaDetailView, crear_venta, generar_ticket_venta, ExportVentasPDF,validar_ventas
+from .views import DevolverVentaView, VentaListView, VentaDetailView, crear_venta, generar_ticket_venta, ExportVentasPDF,validar_ventas
 
 
 
@@ -11,5 +11,6 @@ urlpatterns = [
     path('crear/', crear_venta, name='venta_create'),
     path('export/pdf/', ExportVentasPDF.as_view(), name='venta_export_pdf'),
     path('validar/', validar_ventas, name='validar_ventas'), 
+    path('<int:pk>/devolver/', DevolverVentaView.as_view(), name='devolver_venta'),
 ]
 

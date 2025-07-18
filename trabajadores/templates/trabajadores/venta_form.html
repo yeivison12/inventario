@@ -3,72 +3,76 @@
 {% block content %}
 
 <div class="container mt-4">
-    <div class="text-center mb-5">
-        <h2 class="text-primary fw-bold" style="letter-spacing: 1px;">Crear Venta</h2>
-        <p class="text-muted">Registra una nueva venta de manera sencilla</p>
+    <div class="text-center mb-4">
+        <h2 class="text-primary fw-bold" style="letter-spacing: 1px;">
+            <i class="fas fa-cash-register me-2"></i> Nueva Venta POS
+        </h2>
+        <p class="text-muted">Registra una venta de manera rápida y sencilla</p>
     </div>
 
     <div class="row g-3 row-cols-1 row-cols-md-2">
         <!-- Inventario -->
         <div class="col">
-            <div class="card shadow-sm">
+            <div class="card shadow-sm border-0">
                 <div class="card-header bg-dark text-white">
-                    <h5 class="mb-0"><i class="fas fa-boxes me-2"></i> Inventario de Productos</h5>
+                    <h5 class="mb-0"><i class="fas fa-boxes me-2"></i> Inventario</h5>
                 </div>
                 <div class="card-body">
                     <form method="get" id="search-form">
                         <div class="input-group mb-3">
                             <input type="text" class="form-control form-control-lg" name="q" placeholder="Buscar productos..."
                                 value="{{ query }}" id="search-input">
-                            <button class="btn btn-primary btn-lg" type="submit">Buscar</button>
+                            <button class="btn btn-primary btn-lg" type="submit">
+                                Buscar
+                            </button>
                         </div>
                     </form>
                     
+                    {% if similar_terms %}
+                    <div class="alert alert-info mt-3">
+                        <p class="mb-1">¿Quizás quisiste decir?</p>
+                        {% for term in similar_terms %}
+                        <a href="?q={{ term }}&from_suggestion=true" class="badge bg-primary text-decoration-none">{{ term }}</a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
                     <div class="table-responsive">
-                        <table class="table table-bordered align-middle">
+                        <table class="table table-bordered align-middle table-sm" style="background:#f8f9fa;">
                             <thead class="table-dark text-white">
                                 <tr>
                                     <th style="width: 50px">#</th>
                                     <th>Producto</th>
                                     <th class="text-end">Precio</th>
-                                    <th class="text-center">Acciones</th>
+                                    <th class="text-center">Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
-                        {% if similar_terms %}
-                        <div class="alert alert-info mt-3">
-                            <p class="mb-1">¿Quizás quisiste decir?</p>
-                            {% for term in similar_terms %}
-                            <a href="?q={{ term }}&from_suggestion=true" class="badge bg-primary text-decoration-none">{{ term }}</a>
-                            {% endfor %}
-                        </div>
-                        {% endif %}
                                 {% for producto in productos %}
-                                <tr class="{% if producto.cantidad == 0 %}table-secondary{% endif %}">
-                                    <td data-bs-toggle="modal"
-                                    data-bs-target="#modalProducto{{ producto.id }}">
+                                <tr class="{% if producto.cantidad == 0 %}table-warning{% endif %}">
+                                    <td data-bs-toggle="modal" data-bs-target="#modalProducto{{ producto.id }}">
                                         {% if producto.imagen %}
-                                        <img
-                                        src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}"
+                                        <img src="{{ producto.imagen.url }}" alt="{{ producto.nombre }}"
                                             class="img-thumbnail rounded" style="width: 40px; height: 40px; object-fit: cover;">
                                         {% else %}
                                         <i class="fas fa-box text-muted fs-4"></i>
                                         {% endif %}
                                     </td>
-                                    <td data-bs-toggle="modal"
-                                    data-bs-target="#modalProducto{{ producto.id }}">
+                                    <td data-bs-toggle="modal" data-bs-target="#modalProducto{{ producto.id }}">
                                         <div class="fw-bold">{{ producto.nombre }}</div>
                                         <small class="text-muted">Stock: {{ producto.cantidad }}</small>
                                     </td>
-                                    <td data-bs-toggle="modal"
-                                    data-bs-target="#modalProducto{{ producto.id }}" class="text-end fw-bold">${{ producto.precio }}</td>
+                                    <td data-bs-toggle="modal" data-bs-target="#modalProducto{{ producto.id }}" class="text-end fw-bold">
+                                        ${{ producto.precio }}
+                                    </td>
                                     <td class="text-center">
-                                        <button class="btn btn-success btn-sm add-product-btn"
-                                            data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}"
-                                            data-precio="{{ producto.precio }}" data-stock="{{ producto.cantidad }}"
-                                            {% if producto.cantidad == 0 %}disabled{% endif %}>
-                                            Añadir
-                                        </button>
+                                    <button class="btn btn-success btn-sm add-product-btn"
+                                        data-id="{{ producto.id }}" data-nombre="{{ producto.nombre }}"
+                                        data-precio="{{ producto.precio }}" data-stock="{{ producto.cantidad }}"
+                                        data-imagen="{% if producto.imagen %}{{ producto.imagen.url }}{% endif %}"
+                                        {% if producto.cantidad == 0 %}disabled{% endif %}>
+                                        Agregar
+                                    </button>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -81,7 +85,7 @@
 
         <!-- Registro de Venta -->
         <div class="col">
-            <div class="card shadow-lg">
+            <div class="card shadow-lg border-0">
                 <div class="card-header bg-primary text-white">
                     <h5 class="mb-0"><i class="fas fa-receipt me-2"></i> Registro de Venta</h5>
                 </div>
@@ -98,15 +102,15 @@
                             {% endfor %}
                         </div>
 
-                        <h5 class="mt-3"><i class="fas fa-shopping-cart me-2"></i> Productos en Venta</h5>
+                        <h5 class="mt-4 mb-2"><i class="fas fa-shopping-cart me-2"></i> Productos Seleccionados</h5>
                         <div id="productos-seleccionados" class="mb-3">
                             {{ formset.management_form }}
                         </div>
 
-                        <div class="d-flex justify-content-between p-3 rounded">
-                            <h4 class="mb-0">Total: $<span id="total-venta">0.00</span></h4>
-                            <button type="submit" class="btn btn-success btn-lg" id="submit-button" disabled>
-                                <i class="fas fa-save me-2"></i>Finalizar Venta
+                        <div class="d-flex justify-content-between align-items-center p-3 rounded  border mt-4">
+                            <h4 class="mb-0 text-success fw-bold">Total: $<span id="total-venta">0.00</span></h4>
+                            <button type="submit" class="btn btn-lg btn-success px-4" id="submit-button" disabled>
+                                Finalizar Venta
                             </button>
                         </div>
                     </form>
@@ -116,14 +120,16 @@
     </div>
 </div>
 
-<!-- Modal Responsive -->
+<!-- Modal de Producto -->
 {% for producto in productos %}
 <div class="modal fade" id="modalProducto{{ producto.id }}" tabindex="-1" aria-labelledby="modalProductoLabel{{ producto.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-dark text-white">
                 <h5 class="modal-title">{{ producto.nombre }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="ms-auto">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
             </div>
             <div class="modal-body text-center">
                 {% if producto.imagen %}
@@ -133,15 +139,11 @@
                 <p><strong>Stock:</strong> {{ producto.cantidad }}</p>
                 <p>{{ producto.descripcion }}</p>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-            </div>
         </div>
     </div>
 </div>
 {% endfor %}
 
-<!-- JavaScript Mejorado -->
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const container = document.getElementById("productos-seleccionados");
@@ -215,18 +217,29 @@
                 toggleBotonAgregar(productId, true);
                 const index = totalForms.value;
 
+                const imagenUrl = this.dataset.imagen ? this.dataset.imagen : '';
+                const imagenHtml = imagenUrl
+                    ? `<img src="${imagenUrl}" alt="${this.dataset.nombre}" class="rounded me-3" style="width:48px;height:48px;object-fit:cover;">`
+                    : `<i class="fas fa-box text-muted fs-3 me-3"></i>`;
+
                 const newProduct = `
-                    <div class="card border-secondary mb-2 p-2 producto-item d-flex align-items-center justify-content-between" data-product-id="${productId}">
-                        <div>
-                            <h6 class="card-title">${this.dataset.nombre}</h6>
+                    <div class="card border-secondary mb-2 p-2 producto-item d-flex align-items-center" data-product-id="${productId}">
+                        ${imagenHtml}
+                        <div class="flex-grow-1">
+                            <h6 class="card-title mb-1">${this.dataset.nombre}</h6>
+                            <span class="badge bg-info text-dark mb-1">Precio: $${this.dataset.precio}</span>
                             <input type="hidden" name="ventaproducto_set-${index}-producto" value="${productId}">
-                            <input type="number" name="ventaproducto_set-${index}-cantidad" class="form-control cantidad-input"
+                            <input type="number" name="ventaproducto_set-${index}-cantidad" class="form-control cantidad-input mt-1"
                                 placeholder="Cantidad" min="1" max="${this.dataset.stock}" required
                                 data-precio="${this.dataset.precio}" data-total-id="total-${index}">
-                            <p class="text-muted mt-1">Precio Total: <strong>$<span id="total-${index}">0.00</span></strong></p>
+                            <p class="text-muted mt-1">Subtotal: <strong>$<span id="total-${index}">0.00</span></strong></p>
                             <p class="text-danger d-none error-cantidad">⚠ Cantidad inválida.</p>
+                            <div class="text-center mt-2">
+                                <button type="button" class="btn btn-danger btn-sm remove-product-btn" data-id="${productId}" title="Eliminar">
+                                    Quitar
+                                </button>
+                            </div>
                         </div>
-                        <button type="button" class="btn btn-danger btn-sm remove-product-btn" data-id="${productId}">Eliminar</button>
                     </div>`;
 
                 container.insertAdjacentHTML("beforeend", newProduct);

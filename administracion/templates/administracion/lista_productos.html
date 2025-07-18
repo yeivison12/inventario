@@ -5,12 +5,15 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
     <h2 class="text-center mb-4">Lista de Productos</h2>
-    {% if  historial %}
-    <a class="btn btn-warning" href="{% url 'historial_productos' %}">Ver historial de cambios en productos</a>
-    {% endif %}
+   
     {% if request.user.is_staff %}
-    <a class="btn btn-primary" href="{% url 'nuevo_producto' %}">Agregar Producto</a>
+     {% if historial %}
+        <a class="btn btn-warning" href="{% url 'historial_productos' %}">Ver historial-productos</a>
     {% endif %}
+        <a class="btn btn-primary" href="{% url 'nuevo_producto' %}">Agregar Producto</a>
+    {% endif %}
+  
+
 
 </div>
 <form method="get" action="{% url 'lista_productos' %}" class="mb-4">
@@ -22,14 +25,13 @@
 
     <div class="container">
         {% if similar_terms %}
-        <p>No se encontraron resultados para "{{ request.GET.q }}".</p>
-        <p>Quizás quisiste decir:</p>
-        <ul>
+        <div class="alert alert-info mt-3">
+            <p class="mb-1">¿Quizás quisiste decir?</p>
             {% for term in similar_terms %}
-                <li><a href="?q={{ term }}">{{ term }}</a></li>
+            <a href="?q={{ term }}&from_suggestion=true" class="badge bg-primary text-decoration-none">{{ term }}</a>
             {% endfor %}
-        </ul>
-    {% endif %}
+        </div>
+        {% endif %}
         <div class="row row-cols-1 row-cols-md-3 g-4">
             {% for producto in productos %}
             <div class="col">

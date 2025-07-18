@@ -2,6 +2,6 @@
 from administracion.models import EmpresaNombre
 
 def empresa(request):
-    # Obtiene la primera empresa o None si no existe
+    # Da el nombre de la empresa para el contexto global, revisa en settings.py en la sección de context_processors
     empresa = EmpresaNombre.objects.first()
     return {'empresa': empresa}

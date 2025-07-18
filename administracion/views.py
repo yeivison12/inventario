@@ -1,16 +1,8 @@
 import difflib
-from pyexpat.errors import messages
-from django.http import HttpResponseRedirect
-from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from .models import Producto, Categoria, EmpresaNombre,HistorialProducto
 from django.db.models import Q
-from django.core.files.base import ContentFile
-from django.db import transaction
-from django.core.files.base import ContentFile
-import os
-import uuid
 from .forms import NombreEmpresaForm, ProductoForm, MarcaForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 
@@ -52,7 +44,7 @@ class ListaProductosView(LoginRequiredMixin,ListView):
         context['historial'] = HistorialProducto.objects.all()
         context['similar_terms'] = getattr(self, 'similar_terms', [])
         return context
-    
+
 class DetalleProductoView(LoginRequiredMixin,DetailView):
     model = Producto
     template_name = 'administracion/detalle_producto.html'

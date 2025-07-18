@@ -10,20 +10,24 @@ from administracion.models import EmpresaNombre
 
 # Create your views here.
 class CustomLoginView(LoginView):
-    template_name = 'login/login.html'  
+    template_name = 'login/login.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect(self.get_success_url())
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["nombre"] = EmpresaNombre.objects.all()
+        context["nombre"] = EmpresaNombre.objects.first()
         return context
+
     def get_success_url(self):
         user = self.request.user
         if user.is_superuser:
             return reverse_lazy('lista_productos') + '?login'
-        
-        # Verificar si el usuario pertenece al grupo "Trabajadores"
         if user.groups.filter(name='Trabajadores').exists():
             return reverse_lazy('venta_list') + '?login'
-        
         return reverse_lazy('lista_productos') + '?login'
     
 def custom_logout(request):

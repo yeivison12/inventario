@@ -8,7 +8,7 @@ class Venta(models.Model):
         ('tarjeta', 'Tarjeta'),
         ('transferencia', 'Transferencia'),
     ]
-    cliente = models.CharField(max_length=100)
+    cliente = models.CharField(max_length=15)
     vendedor = models.ForeignKey(User, on_delete=models.CASCADE)
     productos = models.ManyToManyField(Producto, through='VentaProducto')
     metodo_pago = models.CharField(
@@ -25,6 +25,7 @@ class Venta(models.Model):
     actualizado_por = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, blank=True, related_name='ventas_actualizadas'
     )
+    devolucion = models.BooleanField(default=False) 
 
     def __str__(self):
         return f"Venta #{self.id} - {self.cliente}"
@@ -48,7 +49,6 @@ class VentaProducto(models.Model):
         on_delete=models.CASCADE, 
         related_name='ventaproducto_set'
     )
-    # Se usa SET_NULL para que, si se elimina el producto, no se borre este registro.
     producto = models.ForeignKey(
         Producto, 
         on_delete=models.SET_NULL, 
@@ -87,5 +87,4 @@ class VentaProducto(models.Model):
         self.venta.actualizar_total()
 
     def __str__(self):
-        # Se muestra el nombre desnormalizado o el texto por defecto si está vacío
         return f"{self.cantidad}x {self.nombre_producto}"

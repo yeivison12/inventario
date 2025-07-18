@@ -1,11 +1,13 @@
 import datetime
+from django.contrib.auth.mixins import UserPassesTestMixin
+from django.contrib import messages
 from django.forms import inlineformset_factory
-from django.shortcuts import render, redirect
+from django.shortcuts import get_object_or_404, render, redirect
 from django.views import View
 from django.views.generic import ListView, DetailView
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.db.models import Q, Min, Max, Sum
+from django.db.models import Q, Min, Max
 import difflib
 from reportlab.lib.pagesizes import letter
 from django.utils.dateparse import parse_date
@@ -15,7 +17,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import mm
-from administracion.models import Categoria, EmpresaNombre
+from administracion.models import Categoria, EmpresaNombre, HistorialProducto
 from .models import  Venta, VentaProducto, Producto
 from .forms import VentaForm, VentaProductoForm
 from datetime import datetime
@@ -31,23 +33,20 @@ class VentaListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         user = self.request.user
-        # Filtrar ventas según el usuario o superusuario
         queryset = Venta.objects.all() if user.is_superuser else Venta.objects.filter(vendedor=user)
 
         query = self.request.GET.get('q')
         if query:
-            # Filtrar por cliente usando la consulta
             queryset = queryset.filter(Q(cliente__icontains=query))
-            
-            # Si no hay resultados, buscar términos similares
+
             if not queryset.exists():
-                all_terms = list(Venta.objects.values_list('cliente', flat=True))
+                # Obtener nombres de clientes sin repetir
+                all_terms = list(set(Venta.objects.values_list('cliente', flat=True)))
                 self.similar_terms = difflib.get_close_matches(query, all_terms, n=3, cutoff=0.6)
             else:
                 self.similar_terms = []
-        
+
         return queryset.order_by('-fecha_creacion')
-            
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         # Diccionario: clave = id de la venta, valor = lista de detalles (productos) de la venta
@@ -176,6 +175,28 @@ def crear_venta(request):
             # Actualiza el total de la venta
             venta.actualizar_total()
 
+            # Historial de productos vendidos
+            for venta_producto in venta.ventaproducto_set.all():
+                producto_vendido = venta_producto.producto
+                if producto_vendido:  # Puede ser None si fue eliminado
+                    detalle = (
+                        f"vendido por {request.user.username}<br>"
+                        f"Vendido a: <strong>{venta.cliente}</strong><br>"
+                        f"Producto: <strong>{producto_vendido.nombre}</strong><br>"
+                        f"Cantidad: <strong>{venta_producto.cantidad}</strong><br>"
+                        f"Precio unitario: <strong>${venta_producto.precio}</strong><br>"
+                        f"Total: <strong>${venta_producto.precio * venta_producto.cantidad}</strong>"
+                    )
+
+                    HistorialProducto.objects.create(
+                        producto=producto_vendido,
+                        nombre_producto=producto_vendido.nombre,
+                        usuario=request.user,
+                        tipo_cambio="Vendido",
+                        detalle_cambio=detalle,
+                        imagen_producto=producto_vendido.imagen if producto_vendido.imagen else None
+                    )
+
             return redirect('venta_list')
     else:
         venta_form = VentaForm()
@@ -191,11 +212,9 @@ def crear_venta(request):
             Q(categoria__nombre__icontains=query) |
             Q(precio__icontains=query)
         )
-        # Si se hizo clic en una sugerencia, no mostramos el recuadro de sugerencias
         if from_suggestion:
             similar_terms = []
         else:
-            # Si no hay resultados, buscamos sugerencias
             if not productos_list.exists():
                 all_terms = list(Producto.objects.values_list('nombre', flat=True)) + \
                             list(Categoria.objects.values_list('nombre', flat=True))
@@ -206,8 +225,7 @@ def crear_venta(request):
         productos_list = Producto.objects.all()
         similar_terms = []
 
-    # PAGINACIÓN
-    paginator = Paginator(productos_list, 5)  # 5 productos por página
+    paginator = Paginator(productos_list, 5)
     page_number = request.GET.get('page')
     productos = paginator.get_page(page_number)
 
@@ -215,11 +233,12 @@ def crear_venta(request):
         'form': venta_form,
         'formset': formset,
         'productos': productos,
-        'query': query,                # Para mantener el valor ingresado en el buscador
-        'similar_terms': similar_terms # Sugerencias basadas en la búsqueda
+        'query': query,
+        'similar_terms': similar_terms
     }
 
     return render(request, 'trabajadores/venta_form.html', context)
+
 
 class ExportVentasPDF(UserPassesTestMixin, View):
     """Genera un PDF con la lista de ventas filtradas."""
@@ -231,7 +250,7 @@ class ExportVentasPDF(UserPassesTestMixin, View):
     def get_queryset(self):
         """Obtiene y filtra el queryset según los parámetros."""
         user = self.request.user
-        queryset = Venta.objects.all() if user.is_superuser else Venta.objects.filter(vendedor=user)
+        queryset = Venta.objects.filter(devolucion=False) if user.is_superuser else Venta.objects.filter(vendedor=user, devolucion=False)
         
         # Si es el formulario de "Ventas del Día"
         if not self.request.GET.get('fecha_inicio') and not self.request.GET.get('fecha_fin'):
@@ -464,10 +483,29 @@ def validar_ventas(request):
 
     # ✅ Validación del producto (Usar la relación correcta con VentaProducto)
     if producto_id and producto_id.isdigit():
-        queryset = queryset.filter(ventaproducto_set__producto_id=producto_id)  # 🔥 Cambio importante
+        queryset = queryset.filter(ventaproducto_set__producto_id=producto_id) 
     if metodo_pago:
         queryset = queryset.filter(metodo_pago=metodo_pago)
     # ✅ Verificar si hay registros que cumplen con los filtros
     existe = queryset.exists()
 
     return JsonResponse({'existe': existe})
+
+class DevolverVentaView(View,UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_staff
+
+    def post(self, request, pk):
+        venta = get_object_or_404(Venta, pk=pk)
+        if not venta.devolucion:
+            # Sumar stock de cada producto
+            for item in venta.ventaproducto_set.all():
+                if item.producto:
+                    item.producto.cantidad += item.cantidad
+                    item.producto.save()
+            venta.devolucion = True
+            venta.save(update_fields=['devolucion'])
+            messages.success(request, f'La venta #{venta.id} fue marcada como devuelta y el stock actualizado.')
+        else:
+            messages.info(request, f'La venta #{venta.id} ya estaba marcada como devuelta.')
+        return redirect('venta_list')
