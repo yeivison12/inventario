@@ -20,7 +20,7 @@ from reportlab.lib.units import mm
 from administracion.models import Categoria, EmpresaNombre, HistorialProducto
 from .models import  Venta, VentaProducto, Producto
 from .forms import VentaForm, VentaProductoForm
-from datetime import datetime
+from datetime import date, datetime
 
 
 # Vista para listar ventas
@@ -40,7 +40,7 @@ class VentaListView(LoginRequiredMixin, ListView):
             queryset = queryset.filter(Q(cliente__icontains=query))
 
             if not queryset.exists():
-                # Obtener nombres de clientes sin repetir
+                
                 all_terms = list(set(Venta.objects.values_list('cliente', flat=True)))
                 self.similar_terms = difflib.get_close_matches(query, all_terms, n=3, cutoff=0.6)
             else:
@@ -151,7 +151,7 @@ def generar_ticket_venta(request, pk):
 
     pdf.save()
     return response
-# Vista para crear una nueva venta
+
 @login_required
 def crear_venta(request):
     VentaProductoFormSet = inlineformset_factory(
@@ -172,7 +172,6 @@ def crear_venta(request):
             formset.instance = venta
             formset.save()
 
-            # Actualiza el total de la venta
             venta.actualizar_total()
 
             # Historial de productos vendidos
@@ -254,7 +253,6 @@ class ExportVentasPDF(UserPassesTestMixin, View):
         
         # Si es el formulario de "Ventas del Día"
         if not self.request.GET.get('fecha_inicio') and not self.request.GET.get('fecha_fin'):
-            from datetime import date
             today = date.today()
             queryset = queryset.filter(fecha_creacion__date=today)
         else:
@@ -287,11 +285,17 @@ class ExportVentasPDF(UserPassesTestMixin, View):
         
         return queryset.select_related('vendedor')
     def generate_pdf(self, queryset):
-        """Genera un PDF con la lista de ventas filtradas de manera profesional y eficiente."""
+        """Genera un PDF con la lista de ventas filtradas"""
         
         # Configuración inicial del PDF
         response = HttpResponse(content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="ventas.pdf"'
+        today = date.today()
+        if not self.request.GET.get('fecha_inicio') and not self.request.GET.get('fecha_fin'):
+                response['Content-Disposition'] = f'attachment; filename="ventas_{today}.pdf"'
+        else:
+            fecha_inicio = self.request.GET.get('fecha_inicio', today.strftime('%Y-%m-%d'))
+            fecha_fin = self.request.GET.get('fecha_fin', today.strftime('%Y-%m-%d'))
+            response['Content-Disposition'] = f'attachment; filename="ventas_{fecha_inicio}_a_{fecha_fin}.pdf"'        
 
         pdf = canvas.Canvas(response, pagesize=letter)
         width, height = letter
@@ -441,7 +445,7 @@ class ExportVentasPDF(UserPassesTestMixin, View):
             # Crear contexto manualmente para el error
             context = {
                 'error_message': "No hay registros de ventas en el rango de fechas seleccionado.",
-                'vendedores': User.objects.filter(groups__name='Trabajadores')  # Añadir vendedores aquí si es necesario
+                'vendedores': User.objects.filter(groups__name='Trabajadores')  
             }
             return render(request, "trabajadores/venta_lista.html", context)
 
@@ -462,7 +466,7 @@ def validar_ventas(request):
 
     queryset = Venta.objects.all()
 
-    # ✅ Validación de fechas
+    #  Validación de fechas
     try:
         fecha_inicio = datetime.strptime(fecha_inicio_str, "%Y-%m-%d").date() if fecha_inicio_str else None
         fecha_fin = datetime.strptime(fecha_fin_str, "%Y-%m-%d").date() if fecha_fin_str else None
@@ -477,35 +481,60 @@ def validar_ventas(request):
     if fecha_fin:
         queryset = queryset.filter(fecha_creacion__date__lte=fecha_fin)
 
-    # ✅ Validación del vendedor
+
     if vendedor_id and vendedor_id.isdigit():
         queryset = queryset.filter(vendedor_id=vendedor_id)
 
-    # ✅ Validación del producto (Usar la relación correcta con VentaProducto)
+    # Validación del producto (Usar la relación correcta con VentaProducto)
     if producto_id and producto_id.isdigit():
         queryset = queryset.filter(ventaproducto_set__producto_id=producto_id) 
     if metodo_pago:
         queryset = queryset.filter(metodo_pago=metodo_pago)
-    # ✅ Verificar si hay registros que cumplen con los filtros
     existe = queryset.exists()
 
     return JsonResponse({'existe': existe})
 
-class DevolverVentaView(View,UserPassesTestMixin):
+class DevolverVentaView(View, UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_staff
 
     def post(self, request, pk):
         venta = get_object_or_404(Venta, pk=pk)
+        
         if not venta.devolucion:
-            # Sumar stock de cada producto
+            # Registrar en el historial y actualizar stock
             for item in venta.ventaproducto_set.all():
                 if item.producto:
+                    # Actualizar stock
                     item.producto.cantidad += item.cantidad
                     item.producto.save()
+                    
+                    # Registrar en el historial
+                    detalle = (
+                        f"DEVOLUCIÓN realizada por {request.user.username}<br>"
+                        f"Venta original ID: <strong>{venta.id}</strong><br>"
+                        f"Cliente: <strong>{venta.cliente}</strong><br>"
+                        f"Producto: <strong>{item.producto.nombre}</strong><br>"
+                        f"Cantidad devuelta: <strong>{item.cantidad}</strong><br>"
+                        f"Precio unitario: <strong>${item.precio}</strong><br>"
+                        f"Total devuelto: <strong>${item.precio * item.cantidad}</strong>"
+                    )
+                    
+                    HistorialProducto.objects.create(
+                        producto=item.producto,
+                        nombre_producto=item.producto.nombre,
+                        usuario=request.user,
+                        tipo_cambio="Devolución",
+                        detalle_cambio=detalle,
+                        imagen_producto=item.producto.imagen if item.producto.imagen else None
+                    )
+            
+            # Marcar la venta como devuelta
             venta.devolucion = True
             venta.save(update_fields=['devolucion'])
-            messages.success(request, f'La venta #{venta.id} fue marcada como devuelta y el stock actualizado.')
+            
+            messages.success(request, f'Venta #{venta.id} marcada como devuelta. Stock actualizado e historial registrado.')
         else:
-            messages.info(request, f'La venta #{venta.id} ya estaba marcada como devuelta.')
+            messages.warning(request, f'La venta #{venta.id} ya estaba marcada como devuelta.')
+        
         return redirect('venta_list')

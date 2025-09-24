@@ -5,10 +5,13 @@ from .models import Producto, Categoria, EmpresaNombre,HistorialProducto
 from django.db.models import Q
 from .forms import NombreEmpresaForm, ProductoForm, MarcaForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.core.exceptions import PermissionDenied
 
 class AdminRequiredMixin(UserPassesTestMixin):
     def test_func(self):
         return self.request.user.is_staff
+    def handle_no_permission(self):
+        raise PermissionDenied("No tienes permisos para acceder a esta página.")
 class ListaProductosView(LoginRequiredMixin,ListView):
     model = Producto
     paginate_by = 6
@@ -162,7 +165,6 @@ class EditarProductoView(AdminRequiredMixin, UpdateView):
             )
 
         return super().form_valid(form)
-
 
 
 class EliminarProductoView(AdminRequiredMixin, DeleteView):

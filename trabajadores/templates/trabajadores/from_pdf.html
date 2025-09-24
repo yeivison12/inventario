@@ -98,12 +98,12 @@ function validarFechas() {
     if (producto) url += `&producto=${producto}`;
     if (metodoPago) url += `&metodo_pago=${metodoPago}`;
 
-    //console.log(" Enviando solicitud a:", url); 
+  
 
     fetch(url)
         .then(response => response.json())
         .then(data => {
-            //console.log("📬 Respuesta recibida:", data); 
+    
             if (data.existe) {
                 submitButton.disabled = false;
                 noRegistros.style.display = "none";
@@ -113,7 +113,6 @@ function validarFechas() {
             }
         })
         .catch(error => {
-            //console.error("❌ Error en fetch:", error);
             submitButton.disabled = true;
         });
 }

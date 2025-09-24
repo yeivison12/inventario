@@ -4,9 +4,9 @@
 <div class="container mt-4">
     <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
         {% if request.user.is_staff %}
-        <h2 class="fw-bold text-primary mb-2 mb-md-0">📋 Ventas de los trabajadores</h2>
+        <h2 class="fw-bold text-primary mb-2 mb-md-0">Ventas de los trabajadores</h2>
         {% else %}
-        <h2 class="fw-bold text-primary mb-2 mb-md-0">📋 Ventas de <strong>{{request.user}}</strong></h2>
+        <h2 class="fw-bold text-primary mb-2 mb-md-0">Ventas de <strong>{{request.user}}</strong></h2>
         {% endif %}
         <a href="{% url 'venta_create' %}" class="btn btn-success shadow">
             <i class="fas fa-plus"></i> Nueva Venta

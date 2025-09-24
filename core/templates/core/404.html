@@ -1,0 +1,7 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+    <h1>Página no encontrada (404)</h1>
+    <p>La página que buscas no existe.</p>
+    <a href="{% url 'lista_productos' %}" class="btn btn-primary mt-3">Volver</a>
+{% endblock %}
