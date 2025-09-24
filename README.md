@@ -43,16 +43,17 @@ python manage.py createsuperuser
 ```sh
 python manage.py runserver
 ```
-5. Crea un grupo llamado "Tabajadores":
+5. Crea un grupo llamado "Trabajadores":
 
 ```sh
-en el admin /admin/
+Sin nada solo crear el grupo de forma normal, el sistema ya identifica los permisos con el grupo.
 ```
 ## Uso
 
 - Accede al panel de administración en `/admin/`.
 - El sistema permite gestionar productos, categorías, ventas y usuarios.
 - Los archivos estáticos y de medios se sirven automáticamente en desarrollo.
+- Si quieres crear usuarios trabajadores, dale el grupo "Trabajadores".
 
 
 
